@@ -7,6 +7,8 @@ namespace MWin {
         public:
             unsigned int GetKeyCode() const { return m_KeyCode; };
 
+            virtual std::string ToString() const = 0;
+
             GENERATE_CATEGORY_METHOD(KeyboardEventCategory)
         protected:
             KeyEvent(unsigned int code) : m_KeyCode(code) {}
@@ -22,8 +24,8 @@ namespace MWin {
             {
                 return "KeyPress";
             }
-            
-            std::string ToString()
+
+            virtual std::string ToString() const override
             {
                 std::stringstream ss;
                 ss << GetName() << ": " << m_KeyCode;
@@ -40,8 +42,8 @@ namespace MWin {
             {
                 return "KeyRelease";
             }
-            
-            std::string ToString()
+
+            virtual std::string ToString() const override
             {
                 std::stringstream ss;
                 ss << GetName() << ": " << m_KeyCode;

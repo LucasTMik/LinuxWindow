@@ -3,7 +3,6 @@
 
 #if defined(__linux__)
     #include "Platform/Linux/LinuxWindow.h"
-    #define AWINDOW MWin::LinuxWindow
 #else
     #define AWINDOW Other
 #endif

@@ -4,19 +4,31 @@
 #include <functional>
 
 namespace MWin {
+    using EventCallbackFn = std::function<void(Event&)>;
+
+    struct WindowData
+    {
+        unsigned int Width;
+        unsigned int Height;
+        std::string Name;
+        EventCallbackFn Callback;
+    };
+
     class LinuxWindow : public AWindow
     {
         public:
-            LinuxWindow(unsigned int width = 800, unsigned int height = 500, const char* name = nullptr);
+            LinuxWindow(const AWindowProps props);
             ~LinuxWindow();
 
-            void Update() override;
+            void OnUpdate() override;
+            virtual void SetEventCallback(const EventCallbackFn& func) override;
+            virtual unsigned int GetWidth() const override;
+            virtual unsigned int GetHeight() const override;
         private:
+            void Init(const AWindowProps props);
+            void HandleWindowEvents();
             Display* m_Display;
-            int m_Screen;
             Window m_Window;
-            XEvent m_Event;
-
-            
+            WindowData m_Data;
     };
 }

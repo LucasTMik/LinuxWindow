@@ -12,7 +12,7 @@ namespace MWin {
             inline float GetX() const { return m_MouseX; }
             inline float GetY() const { return m_MouseY; }
 
-            std::string ToString()
+            virtual std::string ToString() const override
             {
                 std::stringstream ss;
                 ss << "MouseMoveEvent: " << m_MouseX << ", " << m_MouseY;
@@ -29,7 +29,7 @@ namespace MWin {
                 return "MouseMove";
             };
 
-        GENERATE_CATEGORY_METHOD(MouseEventCategory)
+            GENERATE_CATEGORY_METHOD(MouseEventCategory)
 
         private:
             float m_MouseX, m_MouseY;
