@@ -15,18 +15,10 @@ namespace MWin {
         m_Data.Width = props.Width;
         m_Data.Height = props.Height;
         m_Data.Name = props.Name;
+        m_Data.Running = true;
 
         m_Display = XOpenDisplay(nullptr);
         ASSERT(m_Display != nullptr);
-
-        int screen = DefaultScreen(m_Display);
-        m_Window = XCreateSimpleWindow(m_Display, RootWindow(m_Display, screen), 0, 0, m_Data.Width, m_Data.Height, 1, BlackPixel(m_Display, screen), WhitePixel(m_Display, screen));
-        XStoreName(m_Display, m_Window, m_Data.Name.c_str());
-
-        std::cout << "Window" << m_Data.Name.c_str() << "Created" << std::endl;
-
-        // Map the window to the screen
-        XMapWindow(m_Display, m_Window);
 
         // Enable all input masks for the window
         long eventMask = KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask |
@@ -34,7 +26,42 @@ namespace MWin {
                      StructureNotifyMask | SubstructureNotifyMask | FocusChangeMask |
                      PropertyChangeMask | VisibilityChangeMask;
 
-        XSelectInput(m_Display, m_Window, eventMask);
+        static int visualAttribs[] = {
+            GLX_RGBA,
+            GLX_DEPTH_SIZE, 24,
+            GLX_DOUBLEBUFFER,
+            None
+        };
+
+        m_Visual = glXChooseVisual(m_Display, DefaultScreen(m_Display), visualAttribs);
+        
+        int screen = DefaultScreen(m_Display);
+        Window root = RootWindow(m_Display, screen);
+        XSetWindowAttributes windowAttribs;
+        windowAttribs.colormap = XCreateColormap(m_Display, root, m_Visual->visual, AllocNone);
+        windowAttribs.event_mask = eventMask;
+
+        m_Window = XCreateWindow(m_Display, root, 0, 0, m_Data.Width, m_Data.Height, 0, m_Visual->depth, InputOutput, m_Visual->visual, CWColormap | CWEventMask, &windowAttribs);
+        XStoreName(m_Display, m_Window, m_Data.Name.c_str());
+
+        GLXContext glContext = glXCreateContext(m_Display, m_Visual, nullptr, GL_TRUE);
+        if(!glContext)
+        {
+            std::cout << "Failed to create GL Context" << std::endl;
+            m_Data.Running = false;
+        }
+
+        glXMakeCurrent(m_Display, m_Window, glContext);
+
+        std::cout << "Window" << m_Data.Name.c_str() << "Created" << std::endl;
+
+        // Map the window to the screen
+        XMapWindow(m_Display, m_Window);
+    }
+
+    bool LinuxWindow::IsRunning() const 
+    {
+        return m_Data.Running;
     }
 
     AWindow* AWindow::Create(const AWindowProps& props)
@@ -45,6 +72,7 @@ namespace MWin {
     LinuxWindow::~LinuxWindow()
     {
         XDestroyWindow(m_Display, m_Window);
+        XFree(m_Visual);
         XCloseDisplay(m_Display);
     }
 
@@ -94,6 +122,7 @@ namespace MWin {
     void LinuxWindow::OnUpdate()
     {
         HandleWindowEvents();
+        glXSwapBuffers(m_Display, m_Window);
     }
 
     unsigned int LinuxWindow::GetWidth() const 

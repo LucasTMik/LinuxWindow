@@ -11,14 +11,22 @@ workspace "LinuxWindow"
     defines { "NDEBUG" }
     optimize "On"
 
+    outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
+
+include "LinuxWindow/vendor/Glad"
+
 project "LinuxWindow"
     kind "ConsoleApp"
     language "C++"
     location "%{prj.basedir}/LinuxWindow"
     files { "**.h", "**.cpp" }
 
-    links { "X11" }
-    includedirs { "/usr/include", "%{prj.location}/src" }
+    links { "X11", "Glad", "GL" }
+    includedirs { 
+        "/usr/include", 
+        "%{prj.location}/src",
+        "%{prj.location}/vendor/Glad/include"
+    }
 
-    targetdir "%{prj.location}/bin"
-    objdir "%{prj.location}/bin-int"
+    targetdir ("bin/" .. outputdir .. "/%{prj.name}")
+	objdir ("bin-int/" .. outputdir .. "/%{prj.name}")
