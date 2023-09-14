@@ -7,7 +7,7 @@
 namespace MWin {
     LinuxWindow::LinuxWindow(const AWindowProps props)
     {
-      Init(props);
+        Init(props);
     }
 
     void LinuxWindow::Init(const AWindowProps props)
@@ -22,19 +22,18 @@ namespace MWin {
 
         // Enable all input masks for the window
         long eventMask = KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask |
-                     EnterWindowMask | LeaveWindowMask | PointerMotionMask | ExposureMask |
-                     StructureNotifyMask | SubstructureNotifyMask | FocusChangeMask |
-                     PropertyChangeMask | VisibilityChangeMask;
+                         EnterWindowMask | LeaveWindowMask | PointerMotionMask | ExposureMask |
+                         StructureNotifyMask | SubstructureNotifyMask | FocusChangeMask |
+                         PropertyChangeMask | VisibilityChangeMask;
 
         static int visualAttribs[] = {
             GLX_RGBA,
             GLX_DEPTH_SIZE, 24,
             GLX_DOUBLEBUFFER,
-            None
-        };
+            None};
 
         m_Visual = glXChooseVisual(m_Display, DefaultScreen(m_Display), visualAttribs);
-        
+
         int screen = DefaultScreen(m_Display);
         Window root = RootWindow(m_Display, screen);
         XSetWindowAttributes windowAttribs;
@@ -44,14 +43,14 @@ namespace MWin {
         m_Window = XCreateWindow(m_Display, root, 0, 0, m_Data.Width, m_Data.Height, 0, m_Visual->depth, InputOutput, m_Visual->visual, CWColormap | CWEventMask, &windowAttribs);
         XStoreName(m_Display, m_Window, m_Data.Name.c_str());
 
-        GLXContext glContext = glXCreateContext(m_Display, m_Visual, nullptr, GL_TRUE);
-        if(!glContext)
+        m_glContext = glXCreateContext(m_Display, m_Visual, nullptr, GL_TRUE);
+        if (!m_glContext)
         {
             std::cout << "Failed to create GL Context" << std::endl;
             m_Data.Running = false;
         }
 
-        glXMakeCurrent(m_Display, m_Window, glContext);
+        glXMakeCurrent(m_Display, m_Window, m_glContext);
 
         std::cout << "Window" << m_Data.Name.c_str() << "Created" << std::endl;
 
@@ -59,24 +58,26 @@ namespace MWin {
         XMapWindow(m_Display, m_Window);
     }
 
-    bool LinuxWindow::IsRunning() const 
+    bool LinuxWindow::IsRunning() const
     {
         return m_Data.Running;
     }
 
-    AWindow* AWindow::Create(const AWindowProps& props)
+    AWindow *AWindow::Create(const AWindowProps &props)
     {
         return new LinuxWindow(props);
     }
 
     LinuxWindow::~LinuxWindow()
     {
+        glXMakeCurrent(m_Display, None, nullptr);
+        glXDestroyContext(m_Display, m_glContext);
         XDestroyWindow(m_Display, m_Window);
         XFree(m_Visual);
         XCloseDisplay(m_Display);
     }
 
-    void LinuxWindow::SetEventCallback(const EventCallbackFn& func)
+    void LinuxWindow::SetEventCallback(const EventCallbackFn &func)
     {
         m_Data.Callback = func;
     }
@@ -84,48 +85,61 @@ namespace MWin {
     void LinuxWindow::HandleWindowEvents()
     {
         static XEvent w_Event;
-        XNextEvent(m_Display, &w_Event);
-
-        switch(w_Event.type)
+        while (XPending(m_Display))
         {
-            case ButtonPress:
-            case KeyPress:
+            XNextEvent(m_Display, &w_Event);
+
+            switch (w_Event.type)
             {
-                KeyboardPress event(w_Event.xkey.keycode);
-                m_Data.Callback(event);
-                break;
+                case ButtonPress:
+                case KeyPress:
+                {
+                    KeyboardPress event(w_Event.xkey.keycode);
+                    m_Data.Callback(event);
+                    break;
+                }
+                case ButtonRelease:
+                case KeyRelease:
+                {
+                    KeyboardRelease event(w_Event.xkey.keycode);
+                    m_Data.Callback(event);
+                    break;
+                }
+                case MotionNotify:
+                {
+                    float normalizedX = w_Event.xmotion.x - (m_Data.Width / 2.0f);
+                    float normalizedY = w_Event.xmotion.y - (m_Data.Height / 2.0f);
+
+                    normalizedX /= (m_Data.Width / 2.0f);
+                    normalizedY /= (m_Data.Height / 2.0f) * -1;
+
+                    MouseMoveEvent event(normalizedX, normalizedY);
+
+                    m_Data.Callback(event);
+                    break;
+                }
+                case ConfigureNotify:
+                {
+                    ResizeEvent event(w_Event.xconfigure.width, w_Event.xconfigure.height);
+                    if (m_Data.Width != event.GetWidth() | m_Data.Height != event.GetHeight())
+                    {
+                        m_Data.Width = w_Event.xconfigure.width;
+                        m_Data.Height = w_Event.xconfigure.height;
+                        m_Data.Callback(event);
+                    }
+                    break;
+                }
             }
-            case ButtonRelease:
-            case KeyRelease:
-            {
-                KeyboardRelease event(w_Event.xkey.keycode);
-                m_Data.Callback(event);
-                break;
-            }
-            case MotionNotify:
-            {
-                MouseMoveEvent event(w_Event.xmotion.x, w_Event.xmotion.y);
-                m_Data.Callback(event);
-                break;
-            }
-            case ConfigureNotify:
-            {
-                ResizeEvent event(w_Event.xconfigure.width, w_Event.xconfigure.height);
-                m_Data.Width = w_Event.xconfigure.width;
-                m_Data.Height = w_Event.xconfigure.height;
-                m_Data.Callback(event);
-                break;
-            }
-        }        
+        }
     }
 
     void LinuxWindow::OnUpdate()
     {
-        HandleWindowEvents();
         glXSwapBuffers(m_Display, m_Window);
+        HandleWindowEvents();
     }
 
-    unsigned int LinuxWindow::GetWidth() const 
+    unsigned int LinuxWindow::GetWidth() const
     {
         return m_Data.Width;
     }

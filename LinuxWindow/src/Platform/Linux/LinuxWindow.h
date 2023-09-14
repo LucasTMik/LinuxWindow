@@ -33,6 +33,7 @@ namespace MWin {
             void HandleWindowEvents();
             Display* m_Display;
             Window m_Window;
+            GLXContext m_glContext;
             XVisualInfo* m_Visual;
             WindowData m_Data;
     };
